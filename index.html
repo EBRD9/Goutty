@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="format-detection" content="telephone=no">
+<title>Goutty</title>
+<meta name="apple-mobile-web-app-title" content="Goutty">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+@font-face{font-family:"Big Shoulders Display";src:url("fonts/big-shoulders-display.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Instrument Sans";src:url("fonts/instrument-sans.woff2") format("woff2");font-weight:400 700;font-style:normal;font-display:swap}
+
+:root{
+  /* One phone column, left-aligned. A state-colored stage carries the 24 h arch dial and the switch; quiet sections follow. */
+  --cobalt:#2340E8;   /* gouttières portées */
+  --signal:#E8530C;   /* gouttières retirées */
+  --ink:#14163A;
+  --muted:#5E6286;
+  --bg:#F1F2F6;
+  --surface:#FFFFFF;
+  --line:#DCDFEA;
+  --track:#E1E4F0;
+  --viz-in:#2340E8;
+  --viz-over:#E8530C;
+  --on-viz:#FFFFFF;
+  --accent-ink:#2340E8;
+  --warn-ink:#A83B06;
+  --danger:#B3261E;
+  --focus:#14163A;
+  --font-display:"Big Shoulders Display","DIN Condensed","Avenir Next Condensed","Arial Narrow",sans-serif;
+  --font-body:"Instrument Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink:#ECEEFB;--muted:#A3A7CE;--bg:#0B0D1E;--surface:#161935;--line:#282C52;--track:#262A4E;
+    --viz-in:#6B7CFA;--viz-over:#E8662C;--on-viz:#0B0D1E;--accent-ink:#96A2FF;--warn-ink:#FF9D6B;--danger:#E2574C;--focus:#ECEEFB;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#ECEEFB;--muted:#A3A7CE;--bg:#0B0D1E;--surface:#161935;--line:#282C52;--track:#262A4E;
+  --viz-in:#6B7CFA;--viz-over:#E8662C;--on-viz:#0B0D1E;--accent-ink:#96A2FF;--warn-ink:#FF9D6B;--danger:#E2574C;--focus:#ECEEFB;
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.4;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+h1,h2,h3,p,ul,ol,dl,dd,dt,figure{margin:0;padding:0}
+ul,ol{list-style:none}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+svg{flex:none}
+
+.app{height:100%;max-width:460px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg);position:relative}
+.view{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:28px}
+.fig{font-family:var(--font-display);font-weight:800;line-height:1;letter-spacing:.005em}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* ---------- Stage: the state is the interface ---------- */
+.stage{--st-bg:var(--cobalt);--st-ink:#FFFFFF;--st-soft:rgba(255,255,255,.84);--st-track:rgba(255,255,255,.2);--st-worn:#FFFFFF;--st-out:#FF9A52;--st-btn-bg:#FFFFFF;--st-btn-ink:#101C7A;
+  background:var(--st-bg);color:var(--st-ink);padding:calc(16px + env(safe-area-inset-top)) 20px 14px;border-radius:0 0 30px 30px}
+.stage.out{--st-bg:var(--signal);--st-ink:#1A1030;--st-soft:#1A1030;--st-track:rgba(26,16,48,.18);--st-worn:#1A1030;--st-out:#FFFFFF;--st-btn-bg:#1A1030;--st-btn-ink:#FFFFFF}
+@keyframes toOut{from{background-color:#2340E8}}
+@keyframes toIn{from{background-color:#E8530C}}
+.stage.flip-out{animation:toOut .5s ease}
+.stage.flip-in{animation:toIn .5s ease}
+.stage-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.wordmark{display:block;font-family:var(--font-display);font-weight:800;font-size:24px;line-height:1;letter-spacing:.01em}
+.stage-date{display:block;font-size:14px;font-weight:500;color:var(--st-soft);margin-top:5px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;box-shadow:inset 0 0 0 1.5px var(--st-track);color:var(--st-ink);white-space:nowrap}
+.badge svg{width:14px;height:14px}
+.loading{padding:56px 0 64px;font-size:17px;font-weight:500;color:var(--st-soft)}
+
+.arch{position:relative;margin:2px auto 0;max-width:380px}
+.arch svg{display:block;width:100%;height:auto}
+.a-track{fill:none;stroke:var(--st-track);stroke-width:18;stroke-linecap:round}
+.a-worn{fill:none;stroke:var(--st-worn);stroke-width:18}
+.a-out{fill:none;stroke:var(--st-out);stroke-width:18}
+.a-capworn{fill:var(--st-worn)}
+.a-capout{fill:var(--st-out)}
+.a-tick{stroke:var(--st-soft);stroke-width:1.5;stroke-linecap:round}
+.a-lbl{font:500 11px var(--font-body);fill:var(--st-soft)}
+.a-knob{fill:var(--st-bg);stroke:var(--st-worn);stroke-width:4}
+.a-knob.out{stroke:var(--st-out)}
+.arch-in{position:absolute;left:18%;right:18%;top:26%;bottom:12.5%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;text-align:center}
+.arch-in .lbl{font-size:14px;font-weight:500;color:var(--st-soft)}
+.timer{font-family:var(--font-display);font-weight:800;font-size:min(15.6vw,62px);line-height:1;display:flex;justify-content:center;margin:1px 0 3px;white-space:nowrap}
+.timer b{font-weight:inherit;display:inline-block;width:.49em;text-align:center}
+.timer i{font-style:normal;display:inline-block;width:.22em;text-align:center;opacity:.7}
+.dayline{font-size:14px;color:var(--st-soft)}
+.dayline b{font-weight:700;color:var(--st-ink)}
+.switch{margin-top:11px;width:100%;min-height:54px;border-radius:17px;background:var(--st-btn-bg);color:var(--st-btn-ink);font-weight:700;font-size:17.5px;transition:transform .12s ease}
+.switch:active{transform:scale(.97)}
+.stage .switch:focus-visible,.stage .fix:focus-visible{outline-color:var(--st-ink)}
+.fix{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:32px;padding:0 14px;font-size:13.5px;font-weight:600;color:var(--st-ink);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;white-space:nowrap}
+
+/* ---------- Sections ---------- */
+.vh{padding:calc(26px + env(safe-area-inset-top)) 20px 0}
+.vh h1{font-family:var(--font-display);font-weight:800;font-size:42px;line-height:1;text-wrap:balance}
+.vh p{color:var(--muted);font-size:14px;margin-top:8px}
+.sec{padding:28px 20px 0}
+.sec>h2,.sec-h h2{font-size:14px;font-weight:600;color:var(--muted)}
+.sec>h2{margin-bottom:12px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;min-height:36px}
+.note{font-size:14px;color:var(--muted)}
+.hint{font-size:13.5px;color:var(--muted)}
+
+.lead{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;font-size:15px}
+.lead .fig{font-size:44px}
+.flag{flex-basis:100%;display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:var(--warn-ink);margin-bottom:4px}
+.flag svg{width:16px;height:16px}
+.meter{position:relative;height:12px;border-radius:6px;background:var(--track);margin-top:12px}
+.meter i{position:absolute;top:0;bottom:0;display:block}
+.m-in{left:0;background:var(--viz-in);border-radius:6px}
+.m-in.cut{border-radius:6px 0 0 6px}
+.m-over{background:var(--viz-over);border-radius:0 6px 6px 0;margin-left:2px}
+.meter .m-lim{width:2px;top:-4px;bottom:-4px;background:var(--ink);border-radius:1px;transform:translateX(-2px)}
+.meter-cap{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;color:var(--muted);margin-top:9px;font-variant-numeric:tabular-nums}
+
+.due{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--surface);border-radius:20px;padding:16px 18px;box-shadow:inset 0 0 0 2px var(--viz-in)}
+.due strong{display:block;font-size:16px}
+.due p{font-size:14px;color:var(--muted)}
+
+.tcard{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;width:100%;text-align:left;background:var(--surface);border-radius:20px;padding:16px 18px}
+.tcard .n{display:flex;align-items:baseline;gap:8px}
+.tcard .n .fig{font-size:60px}
+.tcard .n small{font-size:14px;color:var(--muted);font-weight:500;white-space:nowrap}
+.tcard .b{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tcard .b strong{font-size:15px}
+.tcard .b span{font-size:13.5px;color:var(--muted)}
+.pips{display:flex;gap:3px;height:8px}
+.pips i{flex:1;border-radius:2px;background:var(--track)}
+.pips i.on{background:var(--viz-in)}
+.pips i.now{background:transparent;box-shadow:inset 0 0 0 2px var(--viz-in)}
+
+.rows{border-top:1px solid var(--line)}
+.rows li{border-bottom:1px solid var(--line)}
+.rows button,.rows .row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:54px;padding:8px 0;text-align:left;-webkit-user-select:auto;user-select:auto}
+.rows .t{font-weight:600;font-variant-numeric:tabular-nums}
+.rows .t small{display:block;font-weight:400;font-size:13.5px;color:var(--muted)}
+.rows .d{display:flex;align-items:center;gap:6px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rows .d svg{width:16px;height:16px;opacity:.7}
+.live{display:inline-flex;align-items:center;gap:6px;color:var(--warn-ink);font-weight:600}
+.live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--viz-over)}
+.empty{padding:14px 0;color:var(--muted);font-size:15px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+/* ---------- Buttons & fields ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border-radius:14px;font-weight:650;font-size:16px;text-align:center}
+.btn.primary{background:var(--cobalt);color:#fff}
+.btn.secondary{color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line);background:var(--surface)}
+.btn.danger{background:var(--danger);color:#fff}
+.btn.textdanger{color:var(--danger);padding:0 6px}
+.btn.big{min-height:56px;width:100%;font-size:18px;border-radius:17px}
+.btn.wide{width:100%}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.btn-row .btn{flex:1 1 150px}
+.mini{font-size:14.5px;font-weight:650;color:var(--accent-ink);min-height:36px;padding:0 2px}
+.linkbtn{font-size:14.5px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px;min-height:44px}
+
+input[type="date"],input[type="datetime-local"],textarea{min-height:46px;padding:8px 12px;border-radius:13px;border:0;box-shadow:inset 0 0 0 1.5px var(--line);background:var(--surface);color:var(--ink);font-size:16px;max-width:100%;-webkit-appearance:none;appearance:none}
+input::-webkit-date-and-time-value{text-align:left}
+textarea{width:100%;resize:vertical;font-size:14px;line-height:1.35}
+.stepper{display:inline-grid;grid-template-columns:46px 60px 46px;align-items:center;background:var(--surface);border-radius:14px;box-shadow:inset 0 0 0 1.5px var(--line)}
+.stepper.wide{grid-template-columns:46px 92px 46px}
+.stepper button{height:46px;display:grid;place-items:center;color:var(--accent-ink);border-radius:14px}
+.stepper button svg{width:20px;height:20px}
+.stepper input,.stepper output{display:block;width:100%;height:46px;line-height:46px;border:0;background:none;text-align:center;font-weight:700;font-size:18px;font-variant-numeric:tabular-nums;padding:0;box-shadow:none;border-radius:0;-moz-appearance:textfield;appearance:textfield}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.field{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:66px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.field>label,.field>.flabel{font-weight:500;flex:1 1 130px}
+.fields{border-top:1px solid var(--line)}
+.fields+.hint{margin-top:10px}
+.syncline{display:flex;gap:10px;align-items:flex-start;font-size:15px;margin-bottom:14px}
+.syncline svg{width:20px;height:20px;margin-top:1px}
+.syncline.warn{color:var(--warn-ink)}
+
+/* ---------- Onboarding ---------- */
+.ob-stage{padding-bottom:26px}
+.ob-h{font-family:var(--font-display);font-weight:800;font-size:40px;line-height:1.02;margin-top:26px;text-wrap:balance}
+.ob-p{font-size:15.5px;margin-top:10px;color:var(--st-soft);max-width:34ch}
+.ob{padding:4px 20px 8px;display:flex;flex-direction:column}
+.q{padding:20px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.q>label,.qlabel{font-weight:600;font-size:17px}
+.q .sub{font-size:14.5px;font-weight:500;color:var(--muted);margin-bottom:-4px}
+.qrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chip{min-height:46px;padding:0 15px;border-radius:14px;box-shadow:inset 0 0 0 1.5px var(--line);background:var(--surface);font-weight:600;font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);box-shadow:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100%;padding:4px;border-radius:16px;background:var(--track)}
+.seg button{min-height:46px;border-radius:12px;font-weight:600;font-size:15.5px;padding:0 8px}
+.seg button[aria-checked="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(8,10,28,.16)}
+.ob .btn.big{margin-top:22px}
+.err{color:var(--warn-ink);font-weight:600;font-size:14.5px;margin-top:12px}
+.err:empty{display:none}
+
+/* ---------- History ---------- */
+.figs{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;border-top:1px solid var(--line)}
+.figs div{padding:14px 0 13px;border-bottom:1px solid var(--line)}
+.figs dd{font-family:var(--font-display);font-weight:800;font-size:38px;line-height:1}
+.figs dd small{font-family:var(--font-body);font-size:14px;font-weight:500;color:var(--muted);margin-left:5px;letter-spacing:0}
+.figs dt{font-size:13.5px;color:var(--muted);margin-top:5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin-bottom:6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.sw.in{background:var(--viz-in)}
+.sw.over{background:var(--viz-over)}
+.sw.lim{height:2px;width:14px;border-radius:1px;background:var(--ink)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.met{background:var(--viz-in)}
+.dot.miss{box-shadow:inset 0 0 0 2px var(--viz-over)}
+.chart{display:block;width:100%;height:auto;margin-top:8px}
+.c-grid{stroke:var(--line);stroke-width:1}
+.c-lim{stroke:var(--ink);stroke-width:1.5}
+.c-in{fill:var(--viz-in)}
+.c-over{fill:var(--viz-over)}
+.c-part{opacity:.55}
+.c-ylab{font:500 10.5px var(--font-body);fill:var(--muted)}
+.c-ylab.lim{fill:var(--ink);font-weight:700}
+.c-xlab{font:500 10.5px var(--font-body);fill:var(--muted)}
+.c-xlab.sel{fill:var(--ink);font-weight:700}
+.c-sel{fill:var(--track)}
+.c-hit{fill:transparent;cursor:pointer}
+.c-hit:focus-visible{outline:none;stroke:var(--focus);stroke-width:2}
+.readout{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--surface)}
+.readout strong{display:block;font-size:15px}
+.readout span{display:block;font-size:13.5px;color:var(--muted)}
+.tbl{margin-top:10px}
+.tbl summary{font-size:14.5px;font-weight:600;color:var(--accent-ink);cursor:pointer;padding:10px 0}
+.tblwrap{overflow-x:auto}
+.tbl table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{text-align:right;padding:8px 0 8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th:first-child,.tbl td:first-child{text-align:left;padding-left:0}
+.tbl th{font-weight:600;color:var(--muted);font-size:13px}
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.cal-h strong{font-weight:650;font-size:16px}
+.cal-nav{width:44px;height:44px;display:grid;place-items:center;border-radius:12px}
+.cal-nav svg{width:22px;height:22px}
+.cal-nav:disabled{opacity:.28;cursor:default}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:12px}
+.cal .dow{font-size:12.5px;color:var(--muted);text-align:center;padding:4px 0 6px}
+.cd{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size:15px;font-variant-numeric:tabular-nums;line-height:1}
+.cd i{width:8px;height:8px;border-radius:50%}
+.cd.off{color:var(--muted);opacity:.45}
+.cd.off::after{content:"";height:8px}
+.cd.met i{background:var(--viz-in)}
+.cd.miss i{box-shadow:inset 0 0 0 2px var(--viz-over)}
+.cd.cur{box-shadow:inset 0 0 0 1.5px var(--ink);font-weight:700}
+.kv{border-top:1px solid var(--line)}
+.kv div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.kv dt{color:var(--muted);font-size:15px}
+.kv dd{font-weight:650;font-variant-numeric:tabular-nums;text-align:right}
+
+/* ---------- Treatment ---------- */
+.t-num{display:flex;align-items:baseline;gap:12px}
+.t-num .fig{font-size:120px;line-height:.86}
+.t-num span:last-child{font-size:18px;font-weight:500;color:var(--muted)}
+.t-since{margin-top:10px;font-size:15px}
+.bar{height:12px;border-radius:6px;background:var(--track);margin:16px 0 4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--viz-in);border-radius:6px;min-width:6px}
+.t-day{font-size:16px;margin:12px 0 16px}
+.t-day strong{font-weight:700}
+.trays{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.trays li{aspect-ratio:1/1;display:grid;place-items:center;border-radius:10px;font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums;background:var(--track);color:var(--muted)}
+.trays li.done{background:var(--viz-in);color:var(--on-viz)}
+.trays li.cur{background:linear-gradient(to top,color-mix(in srgb,var(--viz-in) 28%,transparent) var(--p,0%),transparent var(--p,0%));box-shadow:inset 0 0 0 2px var(--viz-in);color:var(--ink)}
+.sec .legend.below{margin:12px 0 0}
+.sw.done{background:var(--viz-in)}
+.sw.cur{box-shadow:inset 0 0 0 2px var(--viz-in)}
+.sw.todo{background:var(--track)}
+
+/* ---------- Tabs ---------- */
+.tabs{flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+.tabs[hidden]{display:none}
+.tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px 5px;border-radius:12px;color:var(--muted);font-size:11.5px;font-weight:600;text-decoration:none}
+.tabs a svg{width:24px;height:24px}
+.tabs a[aria-current="page"]{color:var(--accent-ink)}
+
+/* ---------- Sheet & toast ---------- */
+#sheet:empty,#toast:empty{display:none}
+.sheet-bg{position:fixed;inset:0;z-index:30;background:rgba(8,10,28,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:460px;max-height:92%;overflow-y:auto;background:var(--surface);color:var(--ink);border-radius:26px 26px 0 0;padding:24px 20px calc(22px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+.sheet.still{animation:none}
+@keyframes up{from{transform:translateY(22px);opacity:0}}
+.sh-t{font-family:var(--font-display);font-weight:800;font-size:32px;line-height:1.04;margin-bottom:14px;text-wrap:balance}
+.sh-p{color:var(--muted);margin-bottom:16px;font-size:15.5px}
+.sh-figs{display:flex;flex-wrap:wrap;gap:6px 22px;margin-bottom:16px}
+.sh-figs div{display:flex;align-items:baseline;gap:7px}
+.sh-figs .fig{font-size:30px}
+.sh-figs span:last-child{font-size:14px;color:var(--muted)}
+.fieldcol{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.fieldcol label{font-weight:600;font-size:15px}
+.dtrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dtrow input{grid-column:1/-1;min-width:0;width:100%}
+.nudge{min-height:46px;padding:0 12px;border-radius:13px;box-shadow:inset 0 0 0 1.5px var(--line);font-weight:600;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sh-actions{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.grow{flex:1}
+.strip{position:relative;height:14px;border-radius:7px;background:var(--track);overflow:hidden}
+.strip i{position:absolute;top:0;bottom:0}
+.s-worn{background:var(--viz-in)}
+.s-out{background:var(--viz-over);box-shadow:0 0 0 1px var(--surface)}
+.strip-ax{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:6px 0 16px}
+.sheet .rows{margin-bottom:14px}
+.sheet .empty{margin-bottom:14px}
+#toast{position:fixed;left:0;right:0;bottom:calc(86px + env(safe-area-inset-bottom));z-index:40;display:flex;justify-content:center;pointer-events:none;padding:0 16px}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:16px;max-width:428px;background:var(--ink);color:var(--bg);border-radius:16px;padding:10px 16px;font-weight:600;font-size:15px;box-shadow:0 8px 24px rgba(8,10,28,.28);animation:up .2s ease-out}
+.toast button{color:inherit;text-decoration:underline;text-underline-offset:3px;font-weight:700;min-height:36px}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <main id="view" class="view">
+    <section class="stage">
+      <div class="stage-top"><div><span class="wordmark">Gouttières</span></div></div>
+      <p class="loading">Chargement de tes données…</p>
+    </section>
+  </main>
+  <nav id="tabs" class="tabs" aria-label="Rubriques" hidden>
+    <a href="#jour" data-act="tab:jour" data-tab="jour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 20v-9a6 6 0 0 1 12 0v9"/></svg>Jour</a>
+    <a href="#historique" data-act="tab:historique" data-tab="historique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>Historique</a>
+    <a href="#traitement" data-act="tab:traitement" data-tab="traitement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h3M14 12h3"/></svg>Traitement</a>
+    <a href="#reglages" data-act="tab:reglages" data-tab="reglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/></svg>Réglages</a>
+  </nav>
+</div>
+<div id="sheet"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= Helpers ================= */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const clone = o => JSON.parse(JSON.stringify(o));
+const nowMs = () => (typeof window.__now === 'function' ? window.__now() : Date.now());
+const now = () => Math.floor(nowMs() / 1000);
+const NB = ' ';
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const pl = (n, w) => `${n}${NB}${w}${n > 1 ? 's' : ''}`;
+const pct = x => (clamp(x, 0, 1) * 100).toFixed(2) + '%';
+
+const D = s => new Date(s * 1000);
+const sec = d => Math.floor(d.getTime() / 1000);
+const day0 = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const today = () => day0(new Date(nowMs()));
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const isYmd = s => typeof s === 'string' && /^\d{4}-\d\d-\d\d$/.test(s);
+const fromYmd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const diffDays = (a, b) => Math.round((day0(a) - day0(b)) / 864e5);
+const toInput = s => { const d = D(s); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fromInput = v => { if (!v) return null; const t = new Date(v).getTime(); return Number.isFinite(t) ? Math.floor(t / 1000) : null; };
+
+const fmtHM = s => { const m = Math.floor(Math.max(0, s) / 60); return `${Math.floor(m / 60)}${NB}h${NB}${pad(m % 60)}`; };
+const fmtMin = m => (m % 60 ? `${Math.floor(m / 60)}${NB}h${NB}${pad(m % 60)}` : `${m / 60}${NB}h`);
+const fmtDur = s => { s = Math.max(0, Math.floor(s)); if (s < 60) return `${s}${NB}s`; const m = Math.floor(s / 60); return m < 60 ? `${m}${NB}min` : `${Math.floor(m / 60)}${NB}h${NB}${pad(m % 60)}`; };
+const fmtClock = s => { s = Math.max(0, Math.floor(s)); return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map(pad).join(':'); };
+const F = {
+  long: new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }),
+  short: new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }),
+  dm: new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' }),
+  dmy: new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+  my: new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }),
+  hm: new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
+};
+const tHM = s => F.hm.format(D(s));
+const whenDay = n => (n > 1 ? `dans ${n}${NB}jours` : n === 1 ? 'demain' : n === 0 ? "aujourd'hui" : `prévu il y a ${pl(-n, 'jour')}`);
+
+const rid = t => { let r = ''; for (let i = 0; i < 3; i++) r += Math.floor(Math.random() * 36).toString(36); return Math.floor(t || now()).toString(36).padStart(7, '0') + r; };
+const docOf = id => { const t = parseInt(String(id).slice(0, 7), 36); const d = new Date((Number.isFinite(t) ? t : 0) * 1000); return `m-${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`; };
+
+const I = (d, extra) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra || ''}>${d}</svg>`;
+const ICON = {
+  minus: I('<path d="M6 12h12"/>'),
+  plus: I('<path d="M12 6v12M6 12h12"/>'),
+  left: I('<path d="M14.5 6l-6 6 6 6"/>'),
+  right: I('<path d="M9.5 6l6 6-6 6"/>'),
+  warn: I('<path d="M12 4.5l8.5 15h-17z"/><path d="M12 10.5v4M12 17.3v.2"/>'),
+  ok: I('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  wait: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  device: I('<rect x="7" y="3.5" width="10" height="17" rx="2.5"/><path d="M11 17.3h2"/>')
+};
+
+/* ================= State ================= */
+const K = 'gouttieres1:';
+const TABS = ['jour', 'historique', 'traitement', 'reglages'];
+const emptyRemote = () => ({ S: null, A: {}, R: {}, docs: {} });
+const emptyPend = () => ({ S: null, A: {}, R: {} });
+const st = { uid: 'local', mode: 'boot', ready: false, synced: false, err: null, prov: false, remote: emptyRemote(), pend: emptyPend() };
+const ui = { tab: 'jour', screen: '', cal: null, sel: null, dirty: false, flip: '', tbl: false, lastMin: -1, lastDay: '', scrolled: -1e9 };
+let S = null, A = [], R = [], U = [], openRecs = [];
+let ob = null;
+
+const LS = {
+  ok: true,
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { LS.ok = false; /* keep going in memory */ } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+};
+try { localStorage.setItem(K + 'probe', '1'); LS.ok = localStorage.getItem(K + 'probe') === '1'; localStorage.removeItem(K + 'probe'); } catch (e) { LS.ok = false; }
+const obj = x => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
+function loadLocal(uid) {
+  const b = LS.get(K + uid);
+  if (!b || typeof b !== 'object') return false;
+  const r = obj(b.remote), p = obj(b.pend);
+  st.remote = { S: r.S && typeof r.S === 'object' ? r.S : null, A: obj(r.A), R: obj(r.R), docs: obj(r.docs) };
+  st.pend = { S: p.S && typeof p.S === 'object' ? p.S : null, A: obj(p.A), R: obj(p.R) };
+  st.prov = !!b.prov;
+  return true;
+}
+function saveLocal() { LS.set(K + st.uid, { remote: st.remote, pend: st.pend, prov: st.prov }); LS.set(K + 'last', st.uid); }
+
+const newer = (a, b) => (!a ? b : !b ? a : (b[2] || 0) >= (a[2] || 0) ? b : a);
+function mergedMap(kind) { const out = {}, r = st.remote[kind], p = st.pend[kind]; for (const k in r) out[k] = r[k]; for (const k in p) out[k] = newer(out[k], p[k]); return out; }
+function rawS() { const r = st.remote.S, p = st.pend.S; return p && (!r || (p.u || 0) >= (r.u || 0)) ? p : r; }
+
+function derive() {
+  const s = rawS();
+  S = s && !s.off && s.total >= 1 && s.days >= 1 && s.goal >= 60 && s.t0 > 0 ? s : null;
+  const a = mergedMap('A'), r = mergedMap('R');
+  A = [];
+  for (const id in a) { const v = a[id]; if (Array.isArray(v) && !v[3] && v[0] >= 1 && isYmd(v[1])) A.push({ id, n: v[0], date: v[1], u: v[2] || 0 }); }
+  A.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : x.u - y.u));
+  R = [];
+  for (const id in r) { const v = r[id]; if (Array.isArray(v) && !v[3] && Number.isFinite(v[0]) && v[0] > 0) R.push({ id, s: v[0], e: v[1] > 0 ? v[1] : 0 }); }
+  R.sort((x, y) => x.s - y.s);
+  openRecs = R.filter(x => !x.e);
+  U = [];
+  for (const x of R) {
+    const e = x.e || Infinity;
+    if (e <= x.s) continue;
+    const last = U[U.length - 1];
+    if (last && x.s <= last[1]) { if (e > last[1]) last[1] = e; } else U.push([x.s, e]);
+  }
+}
+
+/* ================= Time queries ================= */
+function outIvs(a, b) {
+  const n = now(), res = [];
+  let lo = 0, hi = U.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (U[mid][0] < b) lo = mid + 1; else hi = mid; }
+  for (let i = lo - 1; i >= 0; i--) {
+    const e = Math.min(U[i][1], n);
+    if (e <= a) break;
+    const x = Math.max(U[i][0], a), y = Math.min(e, b);
+    if (y > x) res.push([x, y]);
+  }
+  return res.reverse();
+}
+const recsIn = (a, b) => { const n = now(); return R.filter(x => (x.e || n) > a && x.s < b); };
+function dayInfo(d) {
+  const ds = sec(d), de = sec(addDays(d, 1)), n = now();
+  const a = Math.max(ds, S.t0), b = Math.min(de, n);
+  const di = { d, key: ymd(d), ds, de, a, b, allow: 86400 - S.goal * 60, any: b > a, tracked: Math.max(0, b - a), out: 0, worn: 0, ivs: [], isToday: n >= ds && n < de, full: S.t0 <= ds && n >= de };
+  if (di.any) { di.ivs = outIvs(a, b); for (const v of di.ivs) di.out += v[1] - v[0]; di.worn = di.tracked - di.out; }
+  di.met = di.any && di.out <= di.allow;
+  return di;
+}
+function wornSince() {
+  const n = now();
+  for (let i = U.length - 1; i >= 0; i--) if (U[i][1] <= n) return Math.max(S.t0, U[i][1]);
+  return S.t0;
+}
+function treat() {
+  const t = today(), cur = A[A.length - 1] || { id: '', n: 1, date: ymd(day0(D(S.t0))) };
+  const start = fromYmd(cur.date), dayN = Math.max(1, diffDays(t, start) + 1);
+  const due = addDays(start, S.days), left = diffDays(due, t), last = cur.n >= S.total;
+  const end = addDays(due, Math.max(0, S.total - cur.n) * S.days);
+  const frac = clamp((cur.n - 1 + Math.min((dayN - 1) / S.days, 1)) / S.total, 0, 1);
+  return { cur, start, dayN, due, left, last, end, frac, toEnd: diffDays(end, t), done: last && left <= 0 };
+}
+function stats() {
+  const t = today(), first = day0(D(S.t0)), nDone = Math.max(0, diffDays(t, first));
+  let run = 0, best = 0, met = 0, tot = 0, fullN = 0, recN = 0;
+  const worn = [];
+  for (let i = 0; i < nDone; i++) {
+    const di = dayInfo(addDays(first, i));
+    if (!di.any) continue;
+    tot++;
+    if (di.met) { met++; run++; if (run > best) best = run; } else run = 0;
+    if (di.full) { fullN++; worn.push(di.worn); recN += recsIn(di.ds, di.de).length; }
+  }
+  const ti = dayInfo(t), cur = ti.out > ti.allow ? 0 : run, l7 = worn.slice(-7);
+  let sum = 0, mx = 0, k = 0;
+  for (const x of R) if (x.e) { const d = x.e - x.s; sum += d; k++; if (d > mx) mx = d; }
+  return { cur, best, met, tot, n7: l7.length, avg7: l7.length ? l7.reduce((p, c) => p + c, 0) / l7.length : null, perDay: fullN ? recN / fullN : null, avgDur: k ? sum / k : null, maxDur: k ? mx : null };
+}
+
+/* ================= Mutations ================= */
+let lastU = 0;
+const stamp = () => (lastU = Math.max(nowMs(), lastU + 1));
+function putR(id, s, e, del) { st.pend.R[id] = [s, e || 0, stamp(), del ? 1 : 0]; }
+function putA(id, n, date, del) { st.pend.A[id] = [n, date, stamp(), del ? 1 : 0]; }
+function putS(patch) { st.pend.S = Object.assign({ total: 24, days: 14, goal: 1320, t0: now() }, S || {}, patch, { u: stamp(), off: patch.off ? 1 : 0 }); }
+function commit(force) { derive(); saveLocal(); render(force !== false); flush(); }
+
+/* ================= Online save (the page's own data store) ================= */
+let col = null, loadTimer = 0, retryTimer = 0, retryN = 0, flushing = false, again = false, subTries = 0;
+const acked = {}, made = {};
+
+function adoptUid(uid) {
+  if (uid === st.uid) return;
+  const wasLocal = st.uid === 'local', carry = wasLocal ? st.pend : null;
+  st.uid = uid;
+  if (!loadLocal(uid)) { st.remote = emptyRemote(); st.pend = emptyPend(); st.prov = false; }
+  if (carry) {
+    for (const id in carry.R) st.pend.R[id] = newer(st.pend.R[id], carry.R[id]);
+    if (carry.S && !rawS()) { st.pend.S = carry.S; for (const id in carry.A) st.pend.A[id] = newer(st.pend.A[id], carry.A[id]); st.prov = true; }
+    LS.del(K + 'local');
+  }
+  derive();
+  if (S) st.ready = true;
+  saveLocal();
+}
+async function connect() {
+  const c = window.claude;
+  if (!c || typeof c.use !== 'function') return goLocal();
+  let db = null, user = null, uid = null;
+  try { const r = await Promise.all([c.use('db'), c.use('user')]); db = r[0]; user = r[1]; } catch (e) { /* treated as unavailable */ }
+  try { if (user && typeof user.id === 'function') uid = await user.id(); } catch (e) { /* no identity */ }
+  if (!db || typeof uid !== 'string' || !/^[\w.~:@+-]{1,200}$/.test(uid)) return goLocal();
+  try { col = db.collection('data/users/' + uid); } catch (e) { return goLocal(); }
+  adoptUid(uid);
+  st.mode = 'cloud';
+  loadTimer = setTimeout(() => { if (!st.synced) { st.err = st.err || 'unavailable'; st.ready = true; render(); } }, 10000);
+  subscribe();
+  render();
+}
+function goLocal() { st.mode = 'local'; st.ready = true; render(); }
+function subscribe() {
+  try { col.onSnapshot(onSnap, onSnapErr); } catch (e) { onSnapErr({ code: 'unavailable' }); }
+}
+function onSnap(snap) {
+  const r = emptyRemote();
+  try {
+    for (const d of snap.docs) {
+      const data = d.exists === false ? null : d.data();
+      if (!data) continue;
+      r.docs[d.id] = 1;
+      if (d.id === 'core') {
+        if (data.S && typeof data.S === 'object') r.S = clone(data.S);
+        if (data.A && typeof data.A === 'object') Object.assign(r.A, clone(data.A));
+      } else if (d.id.slice(0, 2) === 'm-' && data.R && typeof data.R === 'object') { const m = clone(data.R); for (const id in m) r.R[id] = newer(r.R[id], m[id]); }
+    }
+  } catch (e) { st.err = 'unavailable'; st.ready = true; render(); return; }
+  const definitive = !(snap.metadata && snap.metadata.fromCache);
+  if (definitive || st.synced) st.remote = r;
+  else {
+    if (r.S && (!st.remote.S || (r.S.u || 0) >= (st.remote.S.u || 0))) st.remote.S = r.S;
+    for (const kind of ['A', 'R']) for (const id in r[kind]) st.remote[kind][id] = newer(st.remote[kind][id], r[kind][id]);
+    Object.assign(st.remote.docs, r.docs);
+  }
+  if (definitive && !st.synced) {
+    st.synced = true; clearTimeout(loadTimer);
+    if (st.prov) { if (r.S && !r.S.off) { st.pend.S = null; st.pend.A = {}; } st.prov = false; }
+    st.ready = true;
+  }
+  prune(); derive(); saveLocal(); render(); flush();
+}
+function onSnapErr(e) {
+  st.err = (e && e.code) || 'unavailable';
+  st.ready = true; clearTimeout(loadTimer);
+  if (st.err === 'unavailable' && subTries++ < 3) setTimeout(subscribe, 30000);
+  render();
+}
+function prune() {
+  const P = st.pend, M = st.remote;
+  for (const kind of ['A', 'R']) for (const id in P[kind]) {
+    const p = P[kind][id], r = M[kind][id];
+    if (r && (r[2] > p[2] || (r[2] === p[2] && acked[kind + id] === p[2]))) delete P[kind][id];
+  }
+  if (P.S && M.S && ((M.S.u || 0) > P.S.u || (M.S.u === P.S.u && acked.S === P.S.u))) P.S = null;
+}
+async function writeDoc(docId, patch, full) {
+  const ref = col.doc(docId);
+  if (st.remote.docs[docId] || made[docId]) {
+    try { await ref.update(patch); return; } catch (e) { if (!e || e.code !== 'invalid_argument') throw e; }
+  }
+  await ref.set(Object.assign({ v: 1 }, full()));
+  st.remote.docs[docId] = 1; made[docId] = 1;
+}
+async function flush() {
+  if (st.mode !== 'cloud' || !st.synced || !col) return;
+  if (flushing) { again = true; return; }
+  flushing = true; again = false;
+  let ok = true;
+  try {
+    const P = st.pend, core = {}, pa = {};
+    let has = false;
+    if (P.S && acked.S !== P.S.u) { core.S = clone(P.S); has = true; }
+    for (const id in P.A) if (acked['A' + id] !== P.A[id][2]) { pa[id] = P.A[id].slice(); has = true; }
+    if (Object.keys(pa).length) core.A = pa;
+    if (has) {
+      await writeDoc('core', core, () => { const o = { A: mergedMap('A') }, s = rawS(); if (s) o.S = s; return clone(o); });
+      if (core.S) acked.S = core.S.u;
+      for (const id in pa) acked['A' + id] = pa[id][2];
+    }
+    const groups = {};
+    for (const id in P.R) if (acked['R' + id] !== P.R[id][2]) { const g = docOf(id); (groups[g] = groups[g] || {})[id] = P.R[id].slice(); }
+    for (const g in groups) {
+      await writeDoc(g, { R: groups[g] }, () => { const all = mergedMap('R'), o = {}; for (const id in all) if (docOf(id) === g) o[id] = all[id]; return clone({ R: o }); });
+      for (const id in groups[g]) acked['R' + id] = groups[g][id][2];
+    }
+    st.err = null; retryN = 0;
+  } catch (e) {
+    ok = false; st.err = (e && e.code) || 'unavailable';
+    if (st.err === 'unavailable' || st.err === 'resource_exhausted') {
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(flush, [4, 15, 60, 120][Math.min(retryN++, 3)] * 1000 * (0.8 + Math.random() * 0.4));
+    }
+  }
+  flushing = false;
+  prune(); derive(); saveLocal(); paintSync();
+  if (ok && again) flush();
+}
+function syncInfo() {
+  const pending = !!st.pend.S || Object.keys(st.pend.A).length > 0 || Object.keys(st.pend.R).length > 0;
+  if (st.mode === 'local') return LS.ok
+    ? { k: 'local', short: 'Sur cet appareil', t: "Enregistré sur cet appareil uniquement. La sauvegarde en ligne n'est pas disponible ici." }
+    : { k: 'warn', short: 'Non enregistré', t: "Rien n'est enregistré : cette page ne peut garder tes données ni en ligne ni sur cet appareil. Copie une sauvegarde avant de la fermer." };
+  if (st.mode === 'boot') return { k: 'busy', short: '', t: 'Connexion à la sauvegarde en ligne…' };
+  if (st.err && (pending || !st.synced)) return { k: 'warn', short: 'Hors ligne', t: 'Sauvegarde en ligne en attente. Tes données restent sur cet appareil et partiront à la prochaine connexion.' };
+  if (!st.synced || pending) return { k: 'busy', short: '', t: 'Sauvegarde en cours…' };
+  return { k: 'ok', short: '', t: 'Sauvegardé en ligne avec cette page. Toi seul vois ces données.' };
+}
+const syncBadge = () => { const s = syncInfo(); return s.short ? `<span class="badge">${s.k === 'warn' ? ICON.warn : ICON.device}${s.short}</span>` : ''; };
+const syncLine = () => { const s = syncInfo(); return `<span class="syncline${s.k === 'warn' ? ' warn' : ''}">${{ ok: ICON.ok, busy: ICON.wait, warn: ICON.warn, local: ICON.device }[s.k]}<span>${s.t}</span></span>`; };
+function paintSync() {
+  for (const el of document.querySelectorAll('[data-sync]')) el.innerHTML = el.dataset.sync === 'line' ? syncLine() : syncBadge();
+}
+
+/* ================= Views ================= */
+const AR = { cx: 180, cy: 174, r: 132, y1: 286, sw: 18 };
+const LEG = AR.y1 - AR.cy, ARC = Math.PI * AR.r, TOT = 2 * LEG + ARC;
+const ARCH_D = `M${AR.cx - AR.r} ${AR.y1}V${AR.cy}A${AR.r} ${AR.r} 0 0 1 ${AR.cx + AR.r} ${AR.cy}V${AR.y1}`;
+function archPt(f, rad) {
+  rad = rad || AR.r;
+  const L = clamp(f, 0, 1) * TOT;
+  if (L <= LEG) return [AR.cx - rad, AR.y1 - L];
+  if (L >= LEG + ARC) return [AR.cx + rad, AR.cy + (L - LEG - ARC)];
+  const t = (L - LEG) / AR.r;
+  return [AR.cx - rad * Math.cos(t), AR.cy - rad * Math.sin(t)];
+}
+function archSvg(di, out) {
+  const len = di.de - di.ds, f = x => (x - di.ds) / len, n = now();
+  const P = (a, b, cls) => (b - a > 1e-5 ? `<path d="${ARCH_D}" pathLength="1000" class="${cls}" stroke-dasharray="${((b - a) * 1000).toFixed(2)} 1000" stroke-dashoffset="${(-a * 1000).toFixed(2)}"/>` : '');
+  let worn = '', outs = '', p = di.a;
+  if (di.any) {
+    for (const iv of di.ivs) { worn += P(f(p), f(iv[0]), 'a-worn'); p = iv[1]; }
+    worn += P(f(p), f(di.b), 'a-worn');
+    for (const iv of di.ivs) {
+      let a = f(iv[0]), b = f(iv[1]);
+      if (b - a < 0.008) { const c = (a + b) / 2; a = clamp(c - 0.004, 0, 0.992); b = a + 0.008; }
+      outs += P(a, b, 'a-out');
+    }
+  }
+  const startOut = di.ivs.length && di.ivs[0][0] <= di.ds;
+  const cap0 = di.any && di.a <= di.ds ? `<circle cx="${AR.cx - AR.r}" cy="${AR.y1}" r="${AR.sw / 2}" class="${startOut ? 'a-capout' : 'a-capworn'}"/>` : '';
+  const k = archPt(f(clamp(n, di.ds, di.de)));
+  let ticks = '';
+  for (const h of [6, 12, 18]) {
+    const ff = f(sec(new Date(di.d.getFullYear(), di.d.getMonth(), di.d.getDate(), h)));
+    const p1 = archPt(ff, AR.r + 13), p2 = archPt(ff, AR.r + 18), pt = archPt(ff, AR.r + 31);
+    ticks += `<line x1="${p1[0].toFixed(1)}" y1="${p1[1].toFixed(1)}" x2="${p2[0].toFixed(1)}" y2="${p2[1].toFixed(1)}" class="a-tick"/><text x="${pt[0].toFixed(1)}" y="${(pt[1] + 4).toFixed(1)}" text-anchor="middle" class="a-lbl">${h}${NB}h</text>`;
+  }
+  const label = `Journée sur 24 heures : ${fmtHM(di.worn)} portées, ${fmtHM(di.out)} retirées.`;
+  return `<svg viewBox="0 0 360 318" role="img" aria-label="${esc(label)}"><path d="${ARCH_D}" class="a-track"/>${cap0}${worn}${outs}${ticks}<text x="${AR.cx - AR.r}" y="312" text-anchor="middle" class="a-lbl">0${NB}h</text><text x="${AR.cx + AR.r}" y="312" text-anchor="middle" class="a-lbl">24${NB}h</text><circle cx="${k[0].toFixed(1)}" cy="${k[1].toFixed(1)}" r="11" class="a-knob${out ? ' out' : ''}"/></svg>`;
+}
+const timerHtml = s => fmtClock(s).split('').map(c => (c === ':' ? '<i>:</i>' : `<b>${c}</b>`)).join('');
+const pips = (dayN, days) => { if (days > 31) return `<div class="bar" style="margin:0"><i style="width:${pct((dayN - 1) / days)}"></i></div>`; let h = ''; for (let i = 1; i <= days; i++) h += `<i class="${i < dayN ? 'on' : i === dayN ? 'now' : ''}"></i>`; return `<div class="pips" aria-hidden="true">${h}</div>`; };
+const dayTxt = tr => (tr.dayN <= S.days ? `Jour ${tr.dayN} sur ${S.days}` : tr.left === 0 ? `${pl(S.days, 'jour')} terminé${S.days > 1 ? 's' : ''}` : `${pl(-tr.left, 'jour')} de plus que prévu`);
+function recRows(list, n) {
+  if (!list.length) return '';
+  return `<ul class="rows">${list.map(x => `<li><button type="button" data-act="edit:${x.id}" aria-label="Modifier le retrait de ${tHM(x.s)}"><span class="t">${tHM(x.s)} – ${x.e ? tHM(x.e) : '…'}</span><span class="d">${x.e ? fmtDur(x.e - x.s) : `<span class="live">en cours, ${fmtDur(n - x.s)}</span>`}${ICON.right}</span></button></li>`).join('')}</ul>`;
+}
+
+function viewLoading() {
+  return `<section class="stage"><div class="stage-top"><div><span class="wordmark">Gouttières</span></div></div><p class="loading">Chargement de tes données…</p></section>`;
+}
+
+function stepper(key, val, min, max, id) {
+  return `<div class="stepper"><button type="button" data-act="step:${key}:-1" aria-label="Diminuer">${ICON.minus}</button><input id="${id}" type="number" inputmode="numeric" min="${min}" max="${max}" value="${val}" data-chg="num:${key}"><button type="button" data-act="step:${key}:1" aria-label="Augmenter">${ICON.plus}</button></div>`;
+}
+function goalStepper(goal, labelId) {
+  return `<div class="stepper wide" role="group" aria-labelledby="${labelId}"><button type="button" data-act="step:goal:-1" aria-label="Diminuer d'une demi-heure">${ICON.minus}</button><output>${fmtMin(goal)}</output><button type="button" data-act="step:goal:1" aria-label="Augmenter d'une demi-heure">${ICON.plus}</button></div>`;
+}
+
+function viewOnboard() {
+  if (!ob) ob = { total: 24, n: 1, date: ymd(today()), days: 14, goal: 1320, wearing: true, since: null };
+  const chips = [7, 10, 14].map(v => `<button type="button" class="chip" data-act="chip:${v}" aria-pressed="${ob.days === v}">${v}${NB}jours</button>`).join('');
+  return `
+  <section class="stage ob-stage">
+    <div class="stage-top"><div><span class="wordmark">Gouttières</span></div><span data-sync="badge">${syncBadge()}</span></div>
+    <h1 class="ob-h">Six réponses pour régler ton suivi</h1>
+    <p class="ob-p">Ensuite, tu touches un bouton quand tu retires ou remets tes gouttières. L'app compte le reste.</p>
+  </section>
+  <div class="ob">
+    <div class="q"><label for="o-total">Combien de gouttières au total ?</label>${stepper('total', ob.total, 1, 99, 'o-total')}</div>
+    <div class="q"><label for="o-n">Tu en es à laquelle ?</label>${stepper('n', ob.n, 1, ob.total, 'o-n')}</div>
+    <div class="q"><label for="o-date">Tu la portes depuis quel jour ?</label><input type="date" id="o-date" value="${ob.date}" max="${ymd(today())}" data-chg="obdate"></div>
+    <div class="q"><label for="o-days">Tu changes de gouttière tous les combien de jours ?</label><div class="qrow">${chips}</div>${stepper('days', ob.days, 1, 60, 'o-days')}</div>
+    <div class="q"><span class="qlabel" id="o-goal">Quel objectif de port par jour ?</span>${goalStepper(ob.goal, 'o-goal')}<p class="hint">Souvent entre 20 et 22 h. Prends la consigne de ton orthodontiste.</p></div>
+    <div class="q"><span class="qlabel" id="o-now">Et là, maintenant ?</span>
+      <div class="seg" role="radiogroup" aria-labelledby="o-now"><button type="button" role="radio" aria-checked="${ob.wearing}" data-act="seg:1">Je les porte</button><button type="button" role="radio" aria-checked="${!ob.wearing}" data-act="seg:0">Je les ai retirées</button></div>
+      <label class="sub" for="o-since">Depuis quand ?</label><input type="datetime-local" id="o-since" value="${toInput(ob.since == null ? now() : ob.since)}" max="${toInput(now())}" data-chg="obsince">
+    </div>
+    <p class="err" id="ob-err" role="alert"></p>
+    <button type="button" class="btn primary big" data-act="obgo">Commencer le suivi</button>
+  </div>`;
+}
+
+function viewJour() {
+  const n = now(), di = dayInfo(today()), open = openRecs[0] || null, out = !!open;
+  const since = out ? open.s : wornSince(), tr = treat();
+  const used = di.out, allow = di.allow, over = used > allow, scale = Math.max(allow, used) || 1;
+  const list = recsIn(di.ds, di.de);
+  const nx = tr.cur.n + 1;
+  return `
+  <section class="stage${out ? ' out' : ''}${ui.flip ? ' flip-' + ui.flip : ''}">
+    <div class="stage-top"><div><span class="wordmark">Gouttières</span><span class="stage-date">${cap(F.long.format(di.d))}</span></div><span data-sync="badge">${syncBadge()}</span></div>
+    <div class="arch">
+      ${archSvg(di, out)}
+      <div class="arch-in">
+        <span class="lbl">${out ? 'Retirées depuis' : 'Portées depuis'}<span class="sr"> ${fmtDur(n - since)}</span></span>
+        <div class="timer" id="tm" aria-hidden="true">${timerHtml(n - since)}</div>
+        <span class="dayline">${!out ? `<b>${fmtHM(di.worn)}</b> portées aujourd'hui` : over ? `<b>${fmtHM(used - allow)}</b> au-delà de la limite` : `<b>${fmtHM(allow - used)}</b> de marge restante`}</span>
+        <button type="button" class="switch" data-act="toggle">${out ? 'Je les remets' : 'Je les retire'}</button>
+      </div>
+      <button type="button" class="fix" data-act="fix">Corriger l'heure</button>
+    </div>
+  </section>
+  ${tr.left <= 0 && !tr.last ? `<section class="sec"><div class="due"><div><strong>Jour de changement</strong><p>${tr.left === 0 ? `La gouttière ${nx} est prévue aujourd'hui.` : `La gouttière ${nx} était prévue il y a ${pl(-tr.left, 'jour')}.`}</p></div><button type="button" class="btn primary" data-act="next">Passer à la ${nx}</button></div></section>` : ''}
+  <section class="sec">
+    <h2>Marge du jour</h2>
+    <p class="lead">${over ? `<span class="flag">${ICON.warn}Limite dépassée</span>` : ''}<strong class="fig">${fmtHM(Math.abs(allow - used))}</strong><span>${over ? "de trop sans gouttières aujourd'hui" : "sans gouttières encore possibles aujourd'hui"}</span></p>
+    <div class="meter" role="img" aria-label="${esc(`${fmtHM(used)} sans gouttières sur une limite de ${fmtMin(allow / 60)}`)}"><i class="m-in${over ? ' cut' : ''}" style="width:${pct(Math.min(used, allow) / scale)}"></i>${over ? `<i class="m-over" style="left:${pct(allow / scale)};width:calc(${pct((used - allow) / scale)} - 2px)"></i><i class="m-lim" style="left:calc(${pct(allow / scale)} + 2px)"></i>` : ''}</div>
+    <div class="meter-cap"><span>${fmtHM(used)} retirées</span><span>limite ${fmtMin(allow / 60)}</span></div>
+  </section>
+  <section class="sec">
+    <h2>Traitement</h2>
+    <button type="button" class="tcard" data-act="tab:traitement" aria-label="Gouttière ${tr.cur.n} sur ${S.total}, ${dayTxt(tr)}. Ouvrir le traitement">
+      <span class="n"><span class="fig">${tr.cur.n}</span><small>sur ${S.total}</small></span>
+      <span class="b">${pips(tr.dayN, S.days)}<strong>${dayTxt(tr)}</strong><span>${tr.done ? 'Dernière gouttière terminée' : tr.last ? `Fin prévue ${F.short.format(tr.due)}, ${whenDay(tr.left)}` : `Changement ${F.short.format(tr.due)}, ${whenDay(tr.left)}`}</span></span>
+    </button>
+  </section>
+  <section class="sec">
+    <div class="sec-h"><h2>Retraits du jour</h2><button type="button" class="mini" data-act="add">Ajouter un oubli</button></div>
+    ${recRows(list, n) || `<p class="empty">Aucun retrait aujourd'hui.</p>`}
+  </section>`;
+}
+
+function barPath(x, yTop, w, yBase, r, cls) {
+  r = Math.max(0, Math.min(r, yBase - yTop, w / 2));
+  return `<path class="${cls}" d="M${x.toFixed(1)} ${yBase.toFixed(1)}V${(yTop + r).toFixed(1)}Q${x.toFixed(1)} ${yTop.toFixed(1)} ${(x + r).toFixed(1)} ${yTop.toFixed(1)}H${(x + w - r).toFixed(1)}Q${(x + w).toFixed(1)} ${yTop.toFixed(1)} ${(x + w).toFixed(1)} ${(yTop + r).toFixed(1)}V${yBase.toFixed(1)}Z"/>`;
+}
+const DOW = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+function chartSvg(days, sel) {
+  const W = 360, H = 206, L = 44, RM = 4, T = 14, B = 36, pw = W - L - RM, ph = H - T - B, allow = days[0].allow;
+  let mx = allow * 1.5;
+  for (const d of days) if (d.out > mx) mx = d.out;
+  const step = mx > 5 * 3600 ? 7200 : mx > 5400 ? 3600 : 1800;
+  mx = Math.ceil(mx / step - 1e-9) * step;
+  const y = v => T + ph - (v / mx) * ph, sw = pw / days.length, bw = Math.min(14, sw - 8), base = y(0);
+  const lab = v => (v === 0 ? '0' : fmtMin(Math.round(v / 60)));
+  let grid = '', bars = '', hits = '', xl = '', band = '';
+  for (let v = 0; v <= mx + 1; v += step) {
+    grid += `<line x1="${L}" x2="${W - RM}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="c-grid"/>`;
+    if (Math.abs(y(v) - y(allow)) >= 12) grid += `<text x="${L - 8}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end" class="c-ylab">${lab(v)}</text>`;
+  }
+  const lim = `<line x1="${L}" x2="${W - RM}" y1="${y(allow).toFixed(1)}" y2="${y(allow).toFixed(1)}" class="c-lim"/><text x="${L - 8}" y="${(y(allow) + 3.5).toFixed(1)}" text-anchor="end" class="c-ylab lim">${lab(allow)}</text>`;
+  days.forEach((d, i) => {
+    const x0 = L + i * sw, x = x0 + (sw - bw) / 2, cx = x0 + sw / 2, isSel = d.key === sel, part = d.any && !d.full ? ' c-part' : '';
+    if (isSel) band = `<rect x="${(x0 + 1).toFixed(1)}" y="${T - 8}" width="${(sw - 2).toFixed(1)}" height="${H - T + 6}" rx="7" class="c-sel"/>`;
+    if (d.any && d.out > 0) {
+      const over = d.out > allow, yIn = Math.min(y(Math.min(d.out, allow)), base - 2);
+      bars += barPath(x, yIn + (over ? 1 : 0), bw, base, over ? 0 : 4, 'c-in' + part);
+      if (over) bars += barPath(x, Math.min(y(d.out), y(allow) - 3), bw, y(allow) - 1, 4, 'c-over' + part);
+    } else if (d.any) bars += `<rect x="${x.toFixed(1)}" y="${(base - 2).toFixed(1)}" width="${bw}" height="2" class="c-in${part}"/>`;
+    xl += `<text x="${cx.toFixed(1)}" y="${H - 19}" text-anchor="middle" class="c-xlab${isSel ? ' sel' : ''}">${DOW[d.d.getDay()]}</text><text x="${cx.toFixed(1)}" y="${H - 6}" text-anchor="middle" class="c-xlab${isSel ? ' sel' : ''}">${d.d.getDate()}</text>`;
+    const tip = `${F.short.format(d.d)} : ${d.any ? fmtHM(d.out) + ' sans gouttières' : 'pas de suivi'}`;
+    hits += `<rect x="${x0.toFixed(1)}" y="0" width="${sw.toFixed(1)}" height="${H}" class="c-hit" data-act="sel:${d.key}" tabindex="0" role="button" aria-label="${esc(tip)}"${isSel ? ' aria-pressed="true"' : ''}><title>${esc(tip)}</title></rect>`;
+  });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="group" aria-label="Temps sans gouttières par jour sur 14 jours">${band}${grid}${bars}${lim}${xl}${hits}</svg>`;
+}
+function calHtml() {
+  const p = ui.cal.split('-').map(Number), first = new Date(p[0], p[1] - 1, 1), dim = new Date(p[0], p[1], 0).getDate(), lead = (first.getDay() + 6) % 7;
+  const t = today(), t0d = day0(D(S.t0)), tk = ymd(t), curYM = tk.slice(0, 7), minYM = ymd(t0d).slice(0, 7);
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<span></span>';
+  for (let dd = 1; dd <= dim; dd++) {
+    const d = new Date(p[0], p[1] - 1, dd), key = ymd(d);
+    if (d < t0d || d > t) { cells += `<span class="cd off">${dd}</span>`; continue; }
+    const di = dayInfo(d);
+    cells += `<button type="button" class="cd ${di.met ? 'met' : 'miss'}${key === tk ? ' cur' : ''}" data-act="day:${key}" aria-label="${esc(F.long.format(d))}, ${di.met ? 'dans la marge' : 'limite dépassée'}">${dd}<i></i></button>`;
+  }
+  return `<div class="cal-h"><button type="button" class="cal-nav" data-act="cal:-1" aria-label="Mois précédent"${ui.cal <= minYM ? ' disabled' : ''}>${ICON.left}</button><strong>${cap(F.my.format(first))}</strong><button type="button" class="cal-nav" data-act="cal:1" aria-label="Mois suivant"${ui.cal >= curYM ? ' disabled' : ''}>${ICON.right}</button></div>
+  <div class="cal">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="dow" aria-hidden="true">${x}</span>`).join('')}${cells}</div>
+  <div class="legend"><span><i class="dot met"></i>Dans la marge</span><span><i class="dot miss"></i>Limite dépassée</span></div>`;
+}
+function viewHisto() {
+  const t = today(), days = [], s = stats(), allowMin = (86400 - S.goal * 60) / 60;
+  for (let i = 13; i >= 0; i--) days.push(dayInfo(addDays(t, -i)));
+  if (!ui.sel || !days.some(d => d.key === ui.sel)) ui.sel = ymd(t);
+  if (!ui.cal) ui.cal = ymd(t).slice(0, 7);
+  const sd = days.find(d => d.key === ui.sel), k = sd.any ? recsIn(sd.a, sd.b).length : 0;
+  const young = s.tot === 0;
+  return `
+  <header class="vh"><h1>Historique</h1><p>Suivi commencé le ${F.dmy.format(D(S.t0))}</p></header>
+  <section class="sec">
+    <dl class="figs">
+      <div><dd>${s.avg7 == null ? '–' : fmtHM(s.avg7)}</dd><dt>portées par jour, en moyenne${s.n7 ? ` sur ${pl(s.n7, 'jour')}` : ''}</dt></div>
+      <div><dd>${s.tot ? s.met : '–'}${s.tot ? `<small>sur ${s.tot}</small>` : ''}</dd><dt>${s.met > 1 || !s.tot ? 'jours' : 'jour'} dans la marge</dt></div>
+      <div><dd>${s.cur}<small>${s.cur > 1 ? 'jours' : 'jour'}</small></dd><dt>série en cours</dt></div>
+      <div><dd>${s.best}<small>${s.best > 1 ? 'jours' : 'jour'}</small></dd><dt>meilleure série</dt></div>
+    </dl>
+    ${young ? `<p class="note" style="margin-top:12px">Les moyennes et les séries démarrent après ta première journée complète.</p>` : ''}
+  </section>
+  <section class="sec">
+    <h2>Temps sans gouttières, 14 derniers jours</h2>
+    <div class="legend"><span><i class="sw in"></i>Dans la marge</span><span><i class="sw over"></i>Au-delà</span><span><i class="sw lim"></i>Limite ${fmtMin(allowMin)}</span></div>
+    ${chartSvg(days, ui.sel)}
+    <div class="readout"><div><strong>${cap(F.long.format(sd.d))}</strong><span>${sd.any ? `${fmtHM(sd.out)} sans gouttières, ${fmtHM(sd.worn)} portées, ${pl(k, 'retrait')}${sd.full ? '' : sd.isToday ? ' (en cours)' : ' (jour partiel)'}` : 'Pas de suivi ce jour-là.'}</span></div>${sd.any ? `<button type="button" class="mini" data-act="day:${sd.key}">Détail</button>` : ''}</div>
+    <details class="tbl"${ui.tbl ? ' open' : ''}><summary>Voir les chiffres en tableau</summary><div class="tblwrap"><table><thead><tr><th scope="col">Jour</th><th scope="col">Sans gouttières</th><th scope="col">Portées</th></tr></thead><tbody>${days.slice().reverse().map(d => `<tr><td>${F.short.format(d.d)}</td><td>${d.any ? fmtHM(d.out) : '–'}</td><td>${d.any ? fmtHM(d.worn) : '–'}</td></tr>`).join('')}</tbody></table></div></details>
+  </section>
+  <section class="sec"><h2>Calendrier</h2>${calHtml()}</section>
+  <section class="sec">
+    <h2>Retraits</h2>
+    <dl class="kv">
+      <div><dt>Par jour, en moyenne</dt><dd>${s.perDay == null ? '–' : s.perDay.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</dd></div>
+      <div><dt>Durée moyenne</dt><dd>${s.avgDur == null ? '–' : fmtDur(s.avgDur)}</dd></div>
+      <div><dt>Le plus long</dt><dd>${s.maxDur == null ? '–' : fmtDur(s.maxDur)}</dd></div>
+    </dl>
+  </section>`;
+}
+
+function trayJournal() {
+  const t = today(), t0d = day0(D(S.t0)), out = [];
+  for (let i = A.length - 1; i >= 0 && out.length < 60; i--) {
+    const a = A[i], s = fromYmd(a.date), nextD = i + 1 < A.length ? fromYmd(A[i + 1].date) : null, e = nextD || addDays(t, 1);
+    let sum = 0, k = 0;
+    for (let d = s < t0d ? t0d : s; d < e; d = addDays(d, 1)) { const di = dayInfo(d); if (di.full) { sum += di.worn; k++; } }
+    out.push({ a, s, nextD, avg: k ? sum / k : null, days: diffDays(e, s) });
+  }
+  return out;
+}
+function viewTrait() {
+  const tr = treat(), nx = tr.cur.n + 1, j = trayJournal();
+  let trays = '';
+  for (let i = 1; i <= S.total; i++) trays += `<li class="${i < tr.cur.n ? 'done' : i === tr.cur.n ? 'cur' : ''}"${i === tr.cur.n ? ` style="--p:${Math.round(clamp((tr.dayN - 1) / S.days, 0, 1) * 100)}%" aria-current="step"` : ''}>${i}</li>`;
+  const rest = tr.toEnd <= 0 ? 'terminé' : tr.toEnd < 21 ? pl(tr.toEnd, 'jour') : pl(Math.round(tr.toEnd / 7), 'semaine');
+  return `
+  <header class="vh"><h1>Traitement</h1></header>
+  <section class="sec">
+    <div class="t-num"><span class="fig">${tr.cur.n}</span><span>sur ${S.total} gouttières</span></div>
+    <div class="bar" role="img" aria-label="Avancement du traitement : ${Math.round(tr.frac * 100)} %"><i style="width:${pct(tr.frac)}"></i></div>
+    <dl class="kv" style="margin-top:14px">
+      <div><dt>Avancement</dt><dd>${Math.round(tr.frac * 100)}${NB}%</dd></div>
+      <div><dt>Fin estimée</dt><dd>${F.dmy.format(tr.end)}</dd></div>
+      <div><dt>Reste</dt><dd>${rest}</dd></div>
+    </dl>
+  </section>
+  <section class="sec">
+    <h2>Gouttière ${tr.cur.n}, portée depuis le ${F.dm.format(tr.start)}</h2>
+    ${pips(tr.dayN, S.days)}
+    <p class="t-day"><strong>${dayTxt(tr)}.</strong> ${tr.done ? "C'est la dernière : ton orthodontiste te dira la suite." : tr.last ? `Fin prévue ${F.long.format(tr.due)}, ${whenDay(tr.left)}.` : `Changement ${F.long.format(tr.due)}, ${whenDay(tr.left)}.`}</p>
+    ${tr.last ? '' : `<button type="button" class="btn ${tr.left <= 0 ? 'primary' : 'secondary'} wide" data-act="next">Passer à la gouttière ${nx}</button>`}
+  </section>
+  <section class="sec">
+    <h2>Toutes les gouttières</h2>
+    <ol class="trays">${trays}</ol>
+    <div class="legend below"><span><i class="sw done"></i>Terminée</span><span><i class="sw cur"></i>En cours</span><span><i class="sw todo"></i>À venir</span></div>
+  </section>
+  <section class="sec">
+    <h2>Journal</h2>
+    <ul class="rows">${j.map(x => `<li><div class="row"><span class="t">Gouttière ${x.a.n}<small>${F.dm.format(x.s)} – ${x.nextD ? F.dm.format(x.nextD) : 'en cours'}, ${pl(x.days, 'jour')}</small></span><span class="d">${x.avg == null ? '–' : `${fmtHM(x.avg)} / jour`}</span></div></li>`).join('')}</ul>
+    ${A.length > 1 ? `<button type="button" class="linkbtn" data-act="undochg" style="margin-top:6px">Annuler le dernier changement</button>` : ''}
+  </section>`;
+}
+
+function viewRegl() {
+  const tr = treat(), allowMin = (86400 - S.goal * 60) / 60;
+  return `
+  <header class="vh"><h1>Réglages</h1></header>
+  <section class="sec">
+    <h2>Traitement</h2>
+    <div class="fields">
+      <div class="field"><label for="f-total">Nombre total de gouttières</label>${stepper('total', S.total, 1, 99, 'f-total')}</div>
+      <div class="field"><label for="f-n">Gouttière en cours</label>${stepper('n', tr.cur.n, 1, S.total, 'f-n')}</div>
+      <div class="field"><label for="f-date">Portée depuis le</label><input type="date" id="f-date" value="${tr.cur.date}" max="${ymd(today())}" data-chg="adate"></div>
+      <div class="field"><label for="f-days">Jours par gouttière</label>${stepper('days', S.days, 1, 60, 'f-days')}</div>
+    </div>
+  </section>
+  <section class="sec">
+    <h2>Objectif</h2>
+    <div class="fields"><div class="field"><span class="flabel" id="f-goal">Port par jour</span>${goalStepper(S.goal, 'f-goal')}</div></div>
+    <p class="hint">Soit ${fmtMin(allowMin)} sans gouttières par jour. Garde l'objectif fixé par ton orthodontiste.</p>
+  </section>
+  <section class="sec">
+    <h2>Suivi</h2>
+    <div class="fields"><div class="field"><label for="f-t0">Début du suivi</label><input type="datetime-local" id="f-t0" value="${toInput(S.t0)}" max="${toInput(now())}" data-chg="t0"></div></div>
+    <p class="hint">Avant cette date, rien n'est compté.</p>
+  </section>
+  <section class="sec">
+    <h2>Sauvegarde</h2>
+    <div data-sync="line">${syncLine()}</div>
+    <div class="btn-row"><button type="button" class="btn secondary" data-act="backup">Copier une sauvegarde</button><button type="button" class="btn secondary" data-act="restore">Restaurer</button></div>
+  </section>
+  <section class="sec"><button type="button" class="btn textdanger" data-act="reset">Tout effacer</button></section>`;
+}
+const VIEW = { jour: viewJour, historique: viewHisto, traitement: viewTrait, reglages: viewRegl };
+
+function render(force) {
+  const v = $('#view'), tabs = $('#tabs'), ae = document.activeElement;
+  if (!force && ae && v.contains(ae) && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) { ui.dirty = true; return; }
+  ui.dirty = false;
+  const screen = S ? ui.tab : st.ready ? 'onboard' : 'loading';
+  const html = S ? VIEW[ui.tab]() : st.ready ? viewOnboard() : viewLoading();
+  const changed = screen !== ui.screen;
+  ui.screen = screen;
+  v.innerHTML = html;
+  if (changed) v.scrollTop = 0;
+  tabs.hidden = !S;
+  for (const a of tabs.querySelectorAll('a')) { if (a.dataset.tab === ui.tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }
+  ui.flip = '';
+  const n = now();
+  ui.lastMin = Math.floor(n / 60); ui.lastDay = ymd(D(n));
+  const top = sheets[sheets.length - 1];
+  if (top && top.live) drawSheet(true);
+}
+function tick() {
+  if (!S) return;
+  const n = now(), min = Math.floor(n / 60), dk = ymd(D(n));
+  if (dk !== ui.lastDay || (ui.tab === 'jour' && min !== ui.lastMin)) { if (performance.now() - ui.scrolled > 1500) render(); return; }
+  if (ui.tab === 'jour') { const el = document.getElementById('tm'); if (el) el.innerHTML = timerHtml(n - (openRecs[0] ? openRecs[0].s : wornSince())); }
+}
+
+/* ================= Sheets & toast ================= */
+const sheets = [];
+function drawSheet(still) {
+  const el = $('#sheet'), top = sheets[sheets.length - 1];
+  if (!top) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="sheet-bg" data-act="sheet-bg"><div class="sheet${still ? ' still' : ''}" role="dialog" aria-modal="true" aria-labelledby="sh-title">${top.html()}</div></div>`;
+  if (!still) { const f = $('.sheet .sh-t', el); if (f) { f.setAttribute('tabindex', '-1'); try { f.focus({ preventScroll: true }); } catch (e) { /* focus is best-effort */ } } }
+}
+function pushSheet(s) { clearTimeout(toastT); $('#toast').innerHTML = ''; toastUndo = null; sheets.push(s); drawSheet(); }
+function popSheet() { sheets.pop(); drawSheet(true); }
+let toastT = 0, toastUndo = null;
+function toast(msg, undo) {
+  toastUndo = undo || null;
+  $('#toast').innerHTML = `<div class="toast"><span>${esc(msg)}</span>${undo ? '<button type="button" data-act="undo">Annuler</button>' : ''}</div>`;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { $('#toast').innerHTML = ''; toastUndo = null; }, undo ? 7000 : 2400);
+}
+
+function editSheet(rec) {
+  const isNew = !rec.id, open = !isNew && !rec.e, mx = toInput(now());
+  pushSheet({
+    rec,
+    html: () => `
+    <h2 class="sh-t" id="sh-title">${isNew ? 'Ajouter un retrait' : 'Modifier le retrait'}</h2>
+    <div class="fieldcol"><label for="e-s">Retirées à</label><div class="dtrow"><input type="datetime-local" id="e-s" value="${toInput(rec.s)}" max="${mx}"><button type="button" class="nudge" data-act="nudge:e-s:-5">−${NB}5${NB}min</button><button type="button" class="nudge" data-act="nudge:e-s:5">+${NB}5${NB}min</button></div></div>
+    <div class="fieldcol"><label for="e-e">Remises à</label>${open ? '<p class="hint">Toujours retirées : laisse vide tant que tu ne les as pas remises.</p>' : ''}<div class="dtrow"><input type="datetime-local" id="e-e" value="${rec.e ? toInput(rec.e) : ''}" max="${mx}"><button type="button" class="nudge" data-act="nudge:e-e:-5">−${NB}5${NB}min</button><button type="button" class="nudge" data-act="nudge:e-e:5">+${NB}5${NB}min</button></div></div>
+    <p class="err" id="e-err" role="alert"></p>
+    <div class="sh-actions">${isNew ? '' : '<button type="button" class="btn textdanger" data-act="edel">Supprimer</button>'}<span class="grow"></span><button type="button" class="btn secondary" data-act="sheet-close">Annuler</button><button type="button" class="btn primary" data-act="esave">Enregistrer</button></div>`
+  });
+}
+function stripHtml(di) {
+  const len = di.de - di.ds, f = x => ((x - di.ds) / len * 100).toFixed(2);
+  let h = '';
+  if (di.any) {
+    h += `<i class="s-worn" style="left:${f(di.a)}%;width:${f(di.ds + di.b - di.a)}%"></i>`;
+    for (const iv of di.ivs) h += `<i class="s-out" style="left:${f(iv[0])}%;width:${Math.max(0.7, (iv[1] - iv[0]) / len * 100).toFixed(2)}%"></i>`;
+  }
+  return `<div class="strip" role="img" aria-label="${esc(`Frise de la journée : ${fmtHM(di.worn)} portées, ${fmtHM(di.out)} retirées`)}">${h}</div><div class="strip-ax" aria-hidden="true"><span>0${NB}h</span><span>6${NB}h</span><span>12${NB}h</span><span>18${NB}h</span><span>24${NB}h</span></div>`;
+}
+function daySheet(key) {
+  pushSheet({
+    live: true,
+    html: () => {
+      const di = dayInfo(fromYmd(key)), list = di.any ? recsIn(di.a, di.b) : [];
+      return `
+      <h2 class="sh-t" id="sh-title">${cap(F.long.format(di.d))}</h2>
+      <div class="sh-figs"><div><span class="fig">${fmtHM(di.worn)}</span><span>portées</span></div><div><span class="fig">${fmtHM(di.out)}</span><span>sans gouttières</span></div></div>
+      ${di.any && !di.met ? `<p class="flag">${ICON.warn}Limite de ${fmtMin(di.allow / 60)} dépassée</p>` : ''}
+      ${stripHtml(di)}
+      ${recRows(list, now()) || '<p class="empty">Aucun retrait ce jour-là.</p>'}
+      <div class="sh-actions"><button type="button" class="btn secondary" data-act="add:${key}">Ajouter un retrait</button><span class="grow"></span><button type="button" class="btn primary" data-act="sheet-close">Fermer</button></div>`;
+    }
+  });
+}
+function confirmSheet(o) {
+  pushSheet({
+    onYes: o.onYes,
+    html: () => `<h2 class="sh-t" id="sh-title">${esc(o.title)}</h2><p class="sh-p">${esc(o.text)}</p><div class="sh-actions"><span class="grow"></span><button type="button" class="btn secondary" data-act="sheet-close">Annuler</button><button type="button" class="btn ${o.danger ? 'danger' : 'primary'}" data-act="cyes">${esc(o.yes)}</button></div>`
+  });
+}
+function nextSheet() {
+  const tr = treat(), nx = tr.cur.n + 1;
+  if (tr.last) return;
+  pushSheet({
+    nx,
+    html: () => `<h2 class="sh-t" id="sh-title">Passer à la gouttière ${nx}</h2>
+    ${tr.dayN <= S.days ? `<p class="sh-p">Tu en es au jour ${tr.dayN} sur ${S.days} de la gouttière ${tr.cur.n}.</p>` : ''}
+    <div class="fieldcol"><label for="n-date">Premier jour avec la gouttière ${nx}</label><input type="date" id="n-date" value="${ymd(today())}" min="${tr.cur.date}" max="${ymd(today())}"></div>
+    <p class="err" id="n-err" role="alert"></p>
+    <div class="sh-actions"><span class="grow"></span><button type="button" class="btn secondary" data-act="sheet-close">Annuler</button><button type="button" class="btn primary" data-act="nyes">Confirmer</button></div>`
+  });
+}
+function t0Sheet() {
+  pushSheet({
+    html: () => `<h2 class="sh-t" id="sh-title">Portées depuis quand ?</h2>
+    <p class="sh-p">Aucun retrait enregistré pour l'instant : le compteur part du début du suivi.</p>
+    <div class="fieldcol"><label for="t-0">Début du suivi</label><input type="datetime-local" id="t-0" value="${toInput(S.t0)}" max="${toInput(now())}"></div>
+    <p class="err" id="t-err" role="alert"></p>
+    <div class="sh-actions"><span class="grow"></span><button type="button" class="btn secondary" data-act="sheet-close">Annuler</button><button type="button" class="btn primary" data-act="t0save">Enregistrer</button></div>`
+  });
+}
+function checkT0(t) {
+  if (t == null) return 'Indique une date et une heure.';
+  if (t > now()) return "Le début du suivi ne peut pas être dans le futur.";
+  if (R.length && t > R[0].s) return `Ton premier retrait date du ${F.short.format(D(R[0].s))} à ${tHM(R[0].s)} : choisis un début avant.`;
+  return '';
+}
+
+/* ================= Backup ================= */
+function exportData() {
+  return { app: 'suivi-gouttieres', v: 1, at: new Date(nowMs()).toISOString(), S: { total: S.total, days: S.days, goal: S.goal, t0: S.t0 }, A: A.map(x => [x.n, x.date]), R: R.map(x => [x.s, x.e]) };
+}
+function importData(o) {
+  const num = (x, a, b) => typeof x === 'number' && Number.isFinite(x) && x >= a && x <= b, n = now();
+  if (!o || o.app !== 'suivi-gouttieres' || !o.S || !Array.isArray(o.A) || !Array.isArray(o.R)) throw new Error('format');
+  const s = o.S;
+  if (!num(s.total, 1, 99) || !num(s.days, 1, 60) || !num(s.goal, 60, 1410) || !num(s.t0, 1e9, n)) throw new Error('format');
+  for (const x of R) putR(x.id, x.s, x.e, 1);
+  for (const x of A) putA(x.id, x.n, x.date, 1);
+  putS({ total: Math.round(s.total), days: Math.round(s.days), goal: Math.round(s.goal), t0: Math.floor(s.t0) });
+  for (const a of o.A) if (Array.isArray(a) && num(a[0], 1, 99) && isYmd(a[1])) putA(rid(), Math.round(a[0]), a[1]);
+  for (const r of o.R) if (Array.isArray(r) && num(r[0], 1e9, n) && (r[1] === 0 || num(r[1], r[0], n + 60))) putR(rid(r[0]), Math.floor(r[0]), Math.floor(r[1]));
+}
+
+/* ================= Actions ================= */
+function setField(key, v, force) {
+  if (!Number.isFinite(v)) { render(true); return; }
+  if (!S) {
+    if (!ob) return;
+    if (key === 'total') { ob.total = clamp(v, 1, 99); ob.n = Math.min(ob.n, ob.total); }
+    else if (key === 'n') ob.n = clamp(v, 1, ob.total);
+    else if (key === 'days') ob.days = clamp(v, 1, 60);
+    else if (key === 'goal') ob.goal = clamp(v, 720, 1410);
+    render(force);
+    return;
+  }
+  const cur = A[A.length - 1];
+  if (key === 'total') { v = clamp(v, 1, 99); putS({ total: v }); if (cur && cur.n > v) putA(cur.id, v, cur.date); }
+  else if (key === 'n') { v = clamp(v, 1, S.total); if (cur) putA(cur.id, v, cur.date); else putA(rid(), v, ymd(today())); }
+  else if (key === 'days') putS({ days: clamp(v, 1, 60) });
+  else if (key === 'goal') putS({ goal: clamp(v, 720, 1410) });
+  commit(force);
+}
+let lastToggle = -1e9;
+const ACT = {
+  tab(name) {
+    if (!TABS.includes(name)) return;
+    ui.tab = name;
+    try { if (location.hash !== '#' + name) location.hash = name; } catch (e) { /* hash is a convenience */ }
+    render(true);
+  },
+  toggle() {
+    const ms = performance.now();
+    if (ms - lastToggle < 500) return;
+    lastToggle = ms;
+    const n = now();
+    if (openRecs.length) {
+      const recs = openRecs.slice();
+      for (const x of recs) putR(x.id, x.s, Math.max(n, x.s + 1));
+      ui.flip = 'in'; commit();
+      toast(`Remises à ${tHM(n)}`, () => { for (const x of recs) putR(x.id, x.s, 0); });
+    } else {
+      const id = rid();
+      putR(id, n, 0);
+      ui.flip = 'out'; commit();
+      toast(`Retirées à ${tHM(n)}`, () => putR(id, n, 0, 1));
+    }
+  },
+  undo() { const f = toastUndo; clearTimeout(toastT); $('#toast').innerHTML = ''; toastUndo = null; if (f) { f(); commit(); } },
+  fix() {
+    if (openRecs.length) return editSheet(openRecs[0]);
+    const n = now();
+    let last = null;
+    for (const x of R) if (x.e && x.e <= n && (!last || x.e > last.e)) last = x;
+    if (last) editSheet(last); else t0Sheet();
+  },
+  add(key) {
+    const n = now(), t = today(), d = key && isYmd(key) ? fromYmd(key) : t;
+    let s, e;
+    if (ymd(d) === ymd(t)) { e = Math.floor((n - 60) / 60) * 60; if (openRecs.length) e = Math.min(e, Math.floor(openRecs[0].s / 60) * 60 - 60); s = e - 1800; }
+    else { s = sec(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 30)); e = s + 1800; }
+    if (s < S.t0) { s = Math.ceil(S.t0 / 60) * 60; e = Math.max(e, s + 60); }
+    editSheet({ id: '', s, e: Math.min(e, n) });
+  },
+  edit(id) { const x = R.find(r => r.id === id); if (x) editSheet(x); },
+  nudge(id, delta) {
+    const el = document.getElementById(id); if (!el) return;
+    const base = fromInput(el.value), n = now();
+    el.value = toInput(Math.min(n, (base == null ? n : base) + Number(delta) * 60));
+  },
+  esave() {
+    const top = sheets[sheets.length - 1], rec = top && top.rec, err = $('#e-err');
+    if (!rec) return;
+    const sv = $('#e-s').value, ev = $('#e-e').value, n = now(), isNew = !rec.id;
+    const s = !isNew && sv === toInput(rec.s) ? rec.s : fromInput(sv);
+    const e = !ev ? 0 : rec.e && ev === toInput(rec.e) ? rec.e : fromInput(ev);
+    const others = R.filter(x => x.id !== rec.id);
+    let msg = '';
+    if (s == null || e == null) msg = "Indique l'heure du retrait.";
+    else if (s > n) msg = "L'heure du retrait ne peut pas être dans le futur.";
+    else if (s < S.t0) msg = `Le suivi commence le ${F.short.format(D(S.t0))} à ${tHM(S.t0)}. Pour remonter plus loin, change le début du suivi dans Réglages.`;
+    else if (e && e <= s) msg = 'La remise doit venir après le retrait.';
+    else if (e > n + 60) msg = "L'heure de remise ne peut pas être dans le futur.";
+    else {
+      const hit = others.find(x => (x.e || n) > s && x.s < (e || n));
+      if (hit) msg = `Ce retrait en chevauche un autre (${tHM(hit.s)} – ${hit.e ? tHM(hit.e) : 'en cours'}).`;
+    }
+    if (msg) { err.textContent = msg; return; }
+    putR(rec.id || rid(s), s, e);
+    sheets.pop(); drawSheet(true); commit();
+    toast(isNew ? 'Retrait ajouté' : 'Retrait modifié');
+  },
+  edel() {
+    const top = sheets[sheets.length - 1], rec = top && top.rec;
+    if (!rec || !rec.id) return;
+    putR(rec.id, rec.s, rec.e, 1);
+    sheets.pop(); drawSheet(true); commit();
+    toast('Retrait supprimé', () => putR(rec.id, rec.s, rec.e));
+  },
+  sel(key) { ui.sel = key; render(true); },
+  day(key) { if (isYmd(key)) daySheet(key); },
+  cal(dir) { const p = ui.cal.split('-').map(Number), d = new Date(p[0], p[1] - 1 + Number(dir), 1); ui.cal = ymd(d).slice(0, 7); render(true); },
+  next() { nextSheet(); },
+  nyes() {
+    const top = sheets[sheets.length - 1], v = $('#n-date').value, tr = treat();
+    if (!isYmd(v) || v > ymd(today()) || v < tr.cur.date) { $('#n-err').textContent = `Choisis un jour entre le ${F.dm.format(tr.start)} et aujourd'hui.`; return; }
+    const id = rid(), nx = top.nx;
+    putA(id, nx, v);
+    sheets.pop(); drawSheet(true); commit();
+    toast(`Gouttière ${nx} commencée`, () => putA(id, nx, v, 1));
+  },
+  undochg() {
+    if (A.length < 2) return;
+    const last = A[A.length - 1], prev = A[A.length - 2];
+    confirmSheet({ title: 'Annuler le dernier changement ?', text: `Tu reviens à la gouttière ${prev.n}, commencée le ${F.dm.format(fromYmd(prev.date))}.`, yes: 'Revenir en arrière', onYes: () => { putA(last.id, last.n, last.date, 1); commit(); } });
+  },
+  step(key, dir) {
+    const d = Number(dir);
+    if (key === 'goal') return setField('goal', (S ? S.goal : ob.goal) + d * 30, true);
+    const cur = S ? (key === 'total' ? S.total : key === 'days' ? S.days : treat().cur.n) : ob[key];
+    setField(key, cur + d, true);
+  },
+  chip(v) { if (ob) { ob.days = Number(v); render(true); } },
+  seg(v) { if (ob) { ob.wearing = v === '1'; render(true); } },
+  obgo() {
+    const err = $('#ob-err'), n = now(), dv = $('#o-date').value;
+    if (isYmd(dv)) ob.date = dv;
+    let msg = '';
+    if (ob.date > ymd(today())) msg = 'Le premier jour de ta gouttière ne peut pas être dans le futur.';
+    else if (ob.since != null && ob.since > n + 60) msg = "L'heure indiquée ne peut pas être dans le futur.";
+    if (msg) { err.textContent = msg; return; }
+    const since = ob.since == null ? n : Math.min(ob.since, n);
+    putS({ total: ob.total, days: ob.days, goal: ob.goal, t0: since });
+    putA(rid(), ob.n, ob.date);
+    if (!ob.wearing) putR(rid(since), since, 0);
+    if (st.mode !== 'local' && !st.synced) st.prov = true;
+    ob = null; ui.tab = 'jour';
+    commit();
+  },
+  backup() {
+    const json = JSON.stringify(exportData());
+    const show = ok => pushSheet({ html: () => `<h2 class="sh-t" id="sh-title">Sauvegarde</h2><p class="sh-p">${ok ? 'Copiée dans le presse-papiers. ' : ''}Colle ce texte dans Notes ou envoie-le-toi par e-mail pour le garder.</p><textarea id="b-json" rows="6" readonly aria-label="Texte de la sauvegarde">${esc(json)}</textarea><div class="sh-actions"><span class="grow"></span><button type="button" class="btn secondary" data-act="bcopy">Copier</button><button type="button" class="btn primary" data-act="sheet-close">Fermer</button></div>` });
+    let p = null;
+    try { p = navigator.clipboard.writeText(json); } catch (e) { p = null; }
+    if (p && p.then) p.then(() => show(true), () => show(false)); else show(false);
+  },
+  bcopy() {
+    const el = $('#b-json'); if (!el) return;
+    el.focus(); el.select();
+    try { navigator.clipboard.writeText(el.value).then(() => toast('Sauvegarde copiée'), () => toast('Copie impossible : sélectionne le texte à la main')); } catch (e) { toast('Copie impossible : sélectionne le texte à la main'); }
+  },
+  restore() {
+    pushSheet({ html: () => `<h2 class="sh-t" id="sh-title">Restaurer une sauvegarde</h2><p class="sh-p">Colle ici le texte d'une sauvegarde. Elle remplace toutes les données actuelles.</p><textarea id="r-json" rows="6" aria-label="Texte de la sauvegarde" placeholder='{"app":"suivi-gouttieres", …}'></textarea><p class="err" id="r-err" role="alert"></p><div class="sh-actions"><span class="grow"></span><button type="button" class="btn secondary" data-act="sheet-close">Annuler</button><button type="button" class="btn danger" data-act="ryes">Remplacer mes données</button></div>` });
+  },
+  ryes() {
+    let o = null;
+    try { o = JSON.parse($('#r-json').value); } catch (e) { o = null; }
+    try { importData(o); } catch (e) { $('#r-err').textContent = "Ce texte n'est pas une sauvegarde de cette app. Colle-le en entier, sans rien changer."; return; }
+    sheets.length = 0; drawSheet(); commit();
+    toast('Sauvegarde restaurée');
+  },
+  reset() {
+    confirmSheet({ title: 'Tout effacer ?', text: 'Tes retraits, tes gouttières et tes réglages seront supprimés, ici et dans la sauvegarde en ligne. Impossible de revenir en arrière.', yes: 'Tout effacer', danger: true, onYes: () => {
+      for (const x of R) putR(x.id, x.s, x.e, 1);
+      for (const x of A) putA(x.id, x.n, x.date, 1);
+      putS({ off: 1 });
+      ob = null; ui.tab = 'jour'; ui.sel = null; ui.cal = null;
+      commit();
+    } });
+  },
+  cyes() { const top = sheets.pop(); drawSheet(true); if (top && top.onYes) top.onYes(); },
+  t0save() {
+    const t = fromInput($('#t-0').value), msg = checkT0(t);
+    if (msg) { $('#t-err').textContent = msg; return; }
+    putS({ t0: t });
+    sheets.pop(); drawSheet(true); commit();
+  },
+  'sheet-close'() { popSheet(); }
+};
+const CHG = {
+  num(el, key) { setField(key, parseInt(el.value, 10), false); },
+  obdate(el) { if (ob && isYmd(el.value) && el.value <= ymd(today())) ob.date = el.value; else if (ob) el.value = ob.date; },
+  obsince(el) { const t = fromInput(el.value); if (ob && t != null && t <= now() + 60) ob.since = t; else if (ob) el.value = toInput(ob.since == null ? now() : ob.since); },
+  adate(el) {
+    const cur = A[A.length - 1], prev = A[A.length - 2], v = el.value;
+    if (!cur || !isYmd(v) || v > ymd(today()) || (prev && v < prev.date)) { toast(prev ? `Choisis un jour entre le ${F.dm.format(fromYmd(prev.date))} et aujourd'hui.` : "Choisis un jour qui n'est pas dans le futur."); if (cur) el.value = cur.date; return; }
+    putA(cur.id, cur.n, v); commit(false);
+  },
+  t0(el) {
+    const t = fromInput(el.value), msg = checkT0(t);
+    if (msg) { toast(msg); el.value = toInput(S.t0); return; }
+    putS({ t0: t }); commit(false);
+  }
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const parts = el.dataset.act.split(':');
+  if (parts[0] === 'sheet-bg') { if (e.target === el) popSheet(); return; }
+  const fn = ACT[parts[0]];
+  if (fn) { e.preventDefault(); fn(parts[1], parts[2], el); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && sheets.length) { popSheet(); return; }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target instanceof Element && e.target.matches('[role="button"][data-act]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+});
+document.addEventListener('change', e => {
+  const el = e.target instanceof Element ? e.target.closest('[data-chg]') : null;
+  if (!el) return;
+  const parts = el.dataset.chg.split(':'), fn = CHG[parts[0]];
+  if (fn) fn(el, parts[1]);
+});
+document.addEventListener('focusout', () => { if (ui.dirty) setTimeout(() => render(), 0); });
+$('#view').addEventListener('scroll', () => { ui.scrolled = performance.now(); }, { passive: true });
+document.addEventListener('toggle', e => { if (e.target instanceof Element && e.target.matches('details.tbl')) ui.tbl = e.target.open; }, true);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); flush(); } });
+window.addEventListener('online', () => flush());
+window.addEventListener('hashchange', () => { const h = (location.hash || '').slice(1); if (TABS.includes(h) && h !== ui.tab) { ui.tab = h; render(true); } });
+
+/* ================= Boot ================= */
+function boot(saved) {
+  const last = LS.get(K + 'last');
+  if (typeof last === 'string' && last && loadLocal(last)) st.uid = last; else loadLocal('local');
+  derive();
+  st.ready = !!S;
+  const h = (location.hash || '').slice(1), sv = saved && typeof saved.tab === 'string' ? saved.tab : '';
+  ui.tab = TABS.includes(h) ? h : TABS.includes(sv) ? sv : 'jour';
+  render(true);
+  connect();
+  setInterval(tick, 1000);
+}
+const hot = window.claude && window.claude.hot;
+try { if (hot && typeof hot.snapshot === 'function') hot.snapshot(() => ({ tab: ui.tab })); } catch (e) { /* optional */ }
+let booted = false;
+const start = saved => { if (booted) return; booted = true; boot(saved || {}); };
+try { if (hot && typeof hot.ready === 'function') hot.ready(start); else start(hot && hot.data); } catch (e) { start({}); }
+setTimeout(() => start({}), 1500);
+})();
+</script>
+</body>
+</html>
